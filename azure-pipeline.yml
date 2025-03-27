@@ -47,7 +47,7 @@ stages:
             displayName: "Terraform Plan"
 
           # Step 5: Manual Approval Before Applying Changes
-          - task: ManualValidation@0
+          - task: ManualValidation@1
             displayName: "Approve Terraform Apply"
             inputs:
               notifyUsers: "jlsryn.quiambao@gmail.com"
