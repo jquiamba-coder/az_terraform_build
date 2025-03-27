@@ -14,20 +14,21 @@ stages:
     jobs:
       - job: Terraform
         displayName: "Run Terraform"
-        pool: server
+        pool:
+          vmImage: 'ubuntu-latest'  # Define agent inside the job
         steps:
 
           # Step 1: Install Terraform
           - task: TerraformInstaller@1
             displayName: "Install Terraform"
             inputs:
-              terraformVersion: "$(TF_VERSION)"
+              terraformVersion: $(TF_VERSION)
 
           # Step 2: Authenticate with Azure using Service Connection
           - task: AzureCLI@2
             displayName: "Login to Azure"
             inputs:
-              azureSubscription: "$(AZURE_SUBSCRIPTION)"
+              azureSubscription: $(AZURE_SUBSCRIPTION)
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
