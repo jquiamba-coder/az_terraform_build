@@ -9,8 +9,8 @@ variables:
   AZURE_SUBSCRIPTION: '68013f73-ff8b-4a58-a1c4-67fb285c8c95'  # Azure subscription ID
 
 - task: TerraformInstaller@1
-    inputs:
-      terraformVersion: '1.5.7'  # Change to the version you need
+  inputs:
+    terraformVersion: '1.5.7'  # Change to the version you need
 
 stages:
   - stage: Terraform_Deploy
@@ -54,7 +54,7 @@ stages:
           - task: ManualValidation@0
             displayName: "Approve Terraform Apply"
             inputs:
-              notifyUsers: "your.email@example.com"
+              notifyUsers: "jlsryn.quiambao@gmail.com"
               instructions: "Review Terraform plan before applying."
 
           # Step 6: Terraform Apply
