@@ -15,7 +15,7 @@ stages:
       - job: Terraform
         displayName: "Run Terraform"
         pool:
-          vmImage: 'ubuntu-latest'  # Define agent inside the job
+          vmImage: 'ubuntu-latest'
         steps:
 
           # Step 0: Verify Terraform Files Exist
@@ -54,27 +54,32 @@ stages:
                 -backend-config="container_name=tfstate" \
                 -backend-config="key=terraform.tfstate"
             displayName: "Terraform Init"
-            workingDirectory: 'infra/terraform'  # Change if needed
-
-          # Step 5: Terraform Plan
-          - script: |
-              terraform plan -out=tfplan
-              ls -la
-            displayName: "Terraform Plan"
-            workingDirectory: 'infra/terraform'  # Change if needed
-           
-          # verification step
-          - script: |
-              echo "Checking if tfplan exists..."
-               ls -la
-            displayName: "Verify tfplan Existence"
             workingDirectory: 'infra/terraform'
 
+          # Step 5: Terraform Plan and Verify tfplan
+          - script: |
+              echo "Running Terraform Plan..."
+              terraform plan -out=tfplan
+              echo "Checking if tfplan exists..."
+              ls -lah
+              if [ ! -f "tfplan" ]; then
+                echo "Error: tfplan was not created!"
+                exit 1
+              fi
+            displayName: "Terraform Plan & Verify tfplan"
+            workingDirectory: 'infra/terraform'
+
+          # Step 6: Upload tfplan as Artifact (Ensures availability in next job)
+          - task: PublishPipelineArtifact@1
+            displayName: "Upload tfplan"
+            inputs:
+              targetPath: 'infra/terraform/tfplan'
+              artifact: 'tfplan'
 
       # Separate Server Job for Manual Validation
       - job: Manual_Approval
         displayName: "Approve Terraform Apply"
-        dependsOn: Terraform  # Ensure this runs after Terraform job
+        dependsOn: Terraform
         pool: server  # Run on a server job (NOT an agent)
         steps:
           - task: ManualValidation@1
@@ -86,14 +91,32 @@ stages:
       # Terraform Apply job (runs after approval)
       - job: Terraform_Apply
         displayName: "Terraform Apply"
-        dependsOn: Manual_Approval  # Wait for manual approval first
+        dependsOn: Manual_Approval
         pool:
           vmImage: 'ubuntu-latest'
         steps:
 
-          # Step 6: Apply Terraform Changes
+          # Step 7: Download tfplan Artifact
+          - task: DownloadPipelineArtifact@2
+            displayName: "Download tfplan"
+            inputs:
+              artifact: 'tfplan'
+              path: 'infra/terraform'
+
+          # Step 8: Verify tfplan Before Apply
+          - script: |
+              echo "Verifying tfplan before apply..."
+              ls -lah
+              if [ ! -f "tfplan" ]; then
+                echo "Error: tfplan is missing in Terraform Apply step!"
+                exit 1
+              fi
+            displayName: "Check tfplan Before Apply"
+            workingDirectory: 'infra/terraform'
+
+          # Step 9: Apply Terraform Changes
           - script: |
               terraform apply -auto-approve tfplan
             displayName: "Terraform Apply"
-            workingDirectory: 'infra/terraform'  # Change if needed
+            workingDirectory: 'infra/terraform'
 
