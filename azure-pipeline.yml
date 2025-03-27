@@ -2,11 +2,11 @@ trigger:
   - main  # Run the pipeline when changes are pushed to the main branch
 
 pool:
-  vmImage: 'ubuntu-latest'  # Use an Ubuntu VM in Azure Pipelines
+  vmImage: 'ubuntu-latest'
 
 variables:
-  TF_VERSION: '1.6.0'  # Ensure Terraform 1.6.0 is used consistently
-  AZURE_SUBSCRIPTION: '68013f73-ff8b-4a58-a1c4-67fb285c8c95'  # Azure subscription ID
+  TF_VERSION: '1.6.0'
+  AZURE_SUBSCRIPTION: '68013f73-ff8b-4a58-a1c4-67fb285c8c95'
 
 stages:
   - stage: Terraform_Deploy
@@ -18,13 +18,13 @@ stages:
           vmImage: 'ubuntu-latest'
         steps:
 
-          # Step 1: Install Terraform (Ensures Version Consistency)
+          # Step 1: Install Terraform
           - task: TerraformInstaller@1
             displayName: "Install Terraform"
             inputs:
               terraformVersion: $(TF_VERSION)
 
-          # Step 2: Authenticate with Azure using Service Connection
+          # Step 2: Authenticate with Azure
           - task: AzureCLI@2
             displayName: "Login to Azure"
             inputs:
@@ -34,9 +34,9 @@ stages:
               inlineScript: |
                 az account show
 
-          # Step 3: Initialize Terraform Backend
+          # Step 3: Initialize Terraform and Upgrade Dependencies
           - script: |
-              terraform init \
+              terraform init -upgrade \
                 -backend-config="resource_group_name=terraform-backend-rg" \
                 -backend-config="storage_account_name=mytfstatestoragejq0714" \
                 -backend-config="container_name=tfstate" \
@@ -44,14 +44,19 @@ stages:
             displayName: "Terraform Init"
             workingDirectory: 'infra/terraform'
 
-          # Step 4: Terraform Plan
+          # Step 4: Generate Terraform Plan
           - script: |
               terraform plan -out=tfplan
-              ls -lah
             displayName: "Terraform Plan"
             workingDirectory: 'infra/terraform'
 
-          # Step 5: Upload tfplan as Artifact
+          # Step 5: Upload .terraform.lock.hcl & tfplan as Artifacts
+          - task: PublishPipelineArtifact@1
+            displayName: "Upload Terraform Lock File and Plan"
+            inputs:
+              targetPath: 'infra/terraform/.terraform.lock.hcl'
+              artifact: 'terraform-lockfile'
+
           - task: PublishPipelineArtifact@1
             displayName: "Upload tfplan"
             inputs:
@@ -61,7 +66,7 @@ stages:
       - job: Manual_Approval
         displayName: "Approve Terraform Apply"
         dependsOn: Terraform
-        pool: server  # Run on a server job (NOT an agent)
+        pool: server
         steps:
           - task: ManualValidation@1
             displayName: "Approve Terraform Apply"
@@ -76,20 +81,32 @@ stages:
           vmImage: 'ubuntu-latest'
         steps:
 
-          # Step 6: Install Terraform (Ensure Same Version as Plan)
+          # Step 6: Install Terraform (Same Version)
           - task: TerraformInstaller@1
-            displayName: "Install Terraform (Ensure Version Consistency)"
+            displayName: "Install Terraform"
             inputs:
               terraformVersion: $(TF_VERSION)
 
-          # Step 7: Download tfplan Artifact
+          # Step 7: Download .terraform.lock.hcl & tfplan
+          - task: DownloadPipelineArtifact@2
+            displayName: "Download Terraform Lock File"
+            inputs:
+              artifact: 'terraform-lockfile'
+              path: 'infra/terraform'
+
           - task: DownloadPipelineArtifact@2
             displayName: "Download tfplan"
             inputs:
               artifact: 'tfplan'
               path: 'infra/terraform'
 
-          # Step 8: Apply Terraform Changes
+          # Step 8: Reinitialize Terraform with Correct Dependencies
+          - script: |
+              terraform init -upgrade
+            displayName: "Reinitialize Terraform"
+            workingDirectory: 'infra/terraform'
+
+          # Step 9: Apply Terraform Plan
           - script: |
               terraform apply -auto-approve tfplan
             displayName: "Terraform Apply"
