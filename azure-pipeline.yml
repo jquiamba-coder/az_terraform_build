@@ -20,13 +20,13 @@ stages:
           - task: TerraformInstaller@1
             displayName: "Install Terraform"
             inputs:
-              terraformVersion: $(TF_VERSION)
+              terraformVersion: "$(TF_VERSION)"
 
           # Step 2: Authenticate with Azure using Service Connection
           - task: AzureCLI@2
             displayName: "Login to Azure"
             inputs:
-              azureSubscription: $(AZURE_SUBSCRIPTION)
+              azureSubscription: "$(AZURE_SUBSCRIPTION)"
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
@@ -50,7 +50,8 @@ stages:
           - task: ManualValidation@0
             displayName: "Approve Terraform Apply"
             inputs:
-              notifyUsers: "jlsryn.quiambao@gmail.com"
+              notifyUsers: 
+                - "jlsryn.quiambao@gmail.com"
               instructions: "Review Terraform plan before applying."
 
           # Step 6: Terraform Apply
