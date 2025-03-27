@@ -18,23 +18,29 @@ stages:
           vmImage: 'ubuntu-latest'  # Define agent inside the job
         steps:
 
-          # Step 1: Install Terraform
+          # Step 1: Verify Terraform Files Exist
+          - script: |
+              echo "Checking for Terraform files..."
+              ls -la
+            displayName: "List files in working directory"
+
+          # Step 2: Install Terraform
           - task: TerraformInstaller@1
             displayName: "Install Terraform"
             inputs:
               terraformVersion: $(TF_VERSION)
 
-          # Step 2: Authenticate with Azure using Service Connection
+          # Step 3: Authenticate with Azure using Service Connection
           - task: AzureCLI@2
             displayName: "Login to Azure"
             inputs:
-              azureSubscription: 'azure-connection'
+              azureSubscription: $(AZURE_SUBSCRIPTION)
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
                 az account show
 
-          # Step 3: Initialize Terraform Backend (Azure Storage)
+          # Step 4: Initialize Terraform Backend (Azure Storage)
           - script: |
               terraform init \
                 -backend-config="resource_group_name=terraform-backend-rg" \
@@ -42,11 +48,13 @@ stages:
                 -backend-config="container_name=tfstate" \
                 -backend-config="key=terraform.tfstate"
             displayName: "Terraform Init"
+            workingDirectory: 'infra/terraform'  # Change if needed
 
-          # Step 4: Terraform Plan
+          # Step 5: Terraform Plan
           - script: |
               terraform plan -out=tfplan
             displayName: "Terraform Plan"
+            workingDirectory: 'infra/terraform'  # Change if needed
 
       # Separate Server Job for Manual Validation
       - job: Manual_Approval
@@ -67,7 +75,10 @@ stages:
         pool:
           vmImage: 'ubuntu-latest'
         steps:
+
+          # Step 6: Apply Terraform Changes
           - script: |
               terraform apply -auto-approve tfplan
             displayName: "Terraform Apply"
+            workingDirectory: 'infra/terraform'  # Change if needed
 
