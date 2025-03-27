@@ -50,8 +50,7 @@ stages:
           - task: ManualValidation@0
             displayName: "Approve Terraform Apply"
             inputs:
-              notifyUsers: 
-                - "jlsryn.quiambao@gmail.com"
+              notifyUsers: "jlsryn.quiambao@gmail.com"
               instructions: "Review Terraform plan before applying."
 
           # Step 6: Terraform Apply
