@@ -56,17 +56,20 @@ stages:
             displayName: "Terraform Init"
             workingDirectory: 'infra/terraform'  # Change if needed
 
-          # Step 4.1: "List all files in the directory"
-          - script: |
-              echo "Checking directory structure..."
-              ls -R
-            displayName: "List all files in the repository"
-
           # Step 5: Terraform Plan
           - script: |
               terraform plan -out=tfplan
+              ls -la
             displayName: "Terraform Plan"
             workingDirectory: 'infra/terraform'  # Change if needed
+           
+          # verification step
+           - script: |
+               echo "Checking if tfplan exists..."
+               ls -la
+             displayName: "Verify tfplan Existence"
+             workingDirectory: 'infra/terraform'
+
 
       # Separate Server Job for Manual Validation
       - job: Manual_Approval
