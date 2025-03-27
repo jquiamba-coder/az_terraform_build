@@ -1,0 +1,60 @@
+trigger:
+  - main  # Run the pipeline when changes are pushed to the main branch
+
+pool:
+  vmImage: 'ubuntu-latest'  # Use an Ubuntu VM in Azure Pipelines
+
+variables:
+  TF_VERSION: '1.6.0'  # Terraform version
+  AZURE_SUBSCRIPTION: '68013f73-ff8b-4a58-a1c4-67fb285c8c95'  # Azure subscription ID
+
+stages:
+  - stage: Terraform_Deploy
+    displayName: "Terraform Deployment"
+    jobs:
+      - job: Terraform
+        displayName: "Run Terraform"
+        steps:
+
+          # Step 1: Install Terraform
+          - task: TerraformInstaller@1
+            displayName: "Install Terraform"
+            inputs:
+              terraformVersion: $(TF_VERSION)
+
+          # Step 2: Authenticate with Azure using Service Connection
+          - task: AzureCLI@2
+            displayName: "Login to Azure"
+            inputs:
+              azureSubscription: $(AZURE_SUBSCRIPTION)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az account show
+
+          # Step 3: Initialize Terraform Backend (Azure Storage)
+          - script: |
+              terraform init \
+                -backend-config="resource_group_name=terraform-backend-rg" \
+                -backend-config="storage_account_name=mytfstatestoragejq0714" \
+                -backend-config="container_name=tfstate" \
+                -backend-config="key=terraform.tfstate"
+            displayName: "Terraform Init"
+
+          # Step 4: Terraform Plan
+          - script: |
+              terraform plan -out=tfplan
+            displayName: "Terraform Plan"
+
+          # Step 5: Manual Approval Before Applying Changes
+          - task: ManualValidation@0
+            displayName: "Approve Terraform Apply"
+            inputs:
+              notifyUsers: "your.email@example.com"
+              instructions: "Review Terraform plan before applying."
+
+          # Step 6: Terraform Apply
+          - script: |
+              terraform apply -auto-approve tfplan
+            displayName: "Terraform Apply"
+
