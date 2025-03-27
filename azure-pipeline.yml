@@ -64,8 +64,8 @@ stages:
             workingDirectory: 'infra/terraform'  # Change if needed
            
           # verification step
-           - script: |
-               echo "Checking if tfplan exists..."
+          - script: |
+              echo "Checking if tfplan exists..."
                ls -la
              displayName: "Verify tfplan Existence"
              workingDirectory: 'infra/terraform'
