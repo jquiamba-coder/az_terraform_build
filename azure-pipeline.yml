@@ -48,14 +48,25 @@ stages:
               terraform plan -out=tfplan
             displayName: "Terraform Plan"
 
-          # Step 5: Manual Approval Before Applying Changes
+      # Separate Server Job for Manual Validation
+      - job: Manual_Approval
+        displayName: "Approve Terraform Apply"
+        dependsOn: Terraform  # Ensure this runs after Terraform job
+        pool: server  # Run on a server job (NOT an agent)
+        steps:
           - task: ManualValidation@1
             displayName: "Approve Terraform Apply"
             inputs:
               notifyUsers: "jlsryn.quiambao@gmail.com"
               instructions: "Review Terraform plan before applying."
 
-          # Step 6: Terraform Apply
+      # Terraform Apply job (runs after approval)
+      - job: Terraform_Apply
+        displayName: "Terraform Apply"
+        dependsOn: Manual_Approval  # Wait for manual approval first
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
           - script: |
               terraform apply -auto-approve tfplan
             displayName: "Terraform Apply"
