@@ -5,7 +5,7 @@ pool:
   vmImage: 'ubuntu-latest'  # Use an Ubuntu VM in Azure Pipelines
 
 variables:
-  TF_VERSION: '1.6.0'  # Terraform version
+  TF_VERSION: '1.6.0'  # Ensure Terraform 1.6.0 is used consistently
   AZURE_SUBSCRIPTION: '68013f73-ff8b-4a58-a1c4-67fb285c8c95'  # Azure subscription ID
 
 stages:
@@ -18,25 +18,13 @@ stages:
           vmImage: 'ubuntu-latest'
         steps:
 
-          # Step 0: Verify Terraform Files Exist
-          - script: |
-              echo "Checking directory structure..."
-              ls -R
-            displayName: "List all files in the repository"
-
-          # Step 1: Verify Terraform Files Exist
-          - script: |
-              echo "Checking for Terraform files..."
-              ls -la
-            displayName: "List files in working directory"
-
-          # Step 2: Install Terraform
+          # Step 1: Install Terraform (Ensures Version Consistency)
           - task: TerraformInstaller@1
             displayName: "Install Terraform"
             inputs:
               terraformVersion: $(TF_VERSION)
 
-          # Step 3: Authenticate with Azure using Service Connection
+          # Step 2: Authenticate with Azure using Service Connection
           - task: AzureCLI@2
             displayName: "Login to Azure"
             inputs:
@@ -46,7 +34,7 @@ stages:
               inlineScript: |
                 az account show
 
-          # Step 4: Initialize Terraform Backend (Azure Storage)
+          # Step 3: Initialize Terraform Backend
           - script: |
               terraform init \
                 -backend-config="resource_group_name=terraform-backend-rg" \
@@ -56,27 +44,20 @@ stages:
             displayName: "Terraform Init"
             workingDirectory: 'infra/terraform'
 
-          # Step 5: Terraform Plan and Verify tfplan
+          # Step 4: Terraform Plan
           - script: |
-              echo "Running Terraform Plan..."
               terraform plan -out=tfplan
-              echo "Checking if tfplan exists..."
               ls -lah
-              if [ ! -f "tfplan" ]; then
-                echo "Error: tfplan was not created!"
-                exit 1
-              fi
-            displayName: "Terraform Plan & Verify tfplan"
+            displayName: "Terraform Plan"
             workingDirectory: 'infra/terraform'
 
-          # Step 6: Upload tfplan as Artifact (Ensures availability in next job)
+          # Step 5: Upload tfplan as Artifact
           - task: PublishPipelineArtifact@1
             displayName: "Upload tfplan"
             inputs:
               targetPath: 'infra/terraform/tfplan'
               artifact: 'tfplan'
 
-      # Separate Server Job for Manual Validation
       - job: Manual_Approval
         displayName: "Approve Terraform Apply"
         dependsOn: Terraform
@@ -88,13 +69,18 @@ stages:
               notifyUsers: "jlsryn.quiambao@gmail.com"
               instructions: "Review Terraform plan before applying."
 
-      # Terraform Apply job (runs after approval)
       - job: Terraform_Apply
         displayName: "Terraform Apply"
         dependsOn: Manual_Approval
         pool:
           vmImage: 'ubuntu-latest'
         steps:
+
+          # Step 6: Install Terraform (Ensure Same Version as Plan)
+          - task: TerraformInstaller@1
+            displayName: "Install Terraform (Ensure Version Consistency)"
+            inputs:
+              terraformVersion: $(TF_VERSION)
 
           # Step 7: Download tfplan Artifact
           - task: DownloadPipelineArtifact@2
@@ -103,18 +89,7 @@ stages:
               artifact: 'tfplan'
               path: 'infra/terraform'
 
-          # Step 8: Verify tfplan Before Apply
-          - script: |
-              echo "Verifying tfplan before apply..."
-              ls -lah
-              if [ ! -f "tfplan" ]; then
-                echo "Error: tfplan is missing in Terraform Apply step!"
-                exit 1
-              fi
-            displayName: "Check tfplan Before Apply"
-            workingDirectory: 'infra/terraform'
-
-          # Step 9: Apply Terraform Changes
+          # Step 8: Apply Terraform Changes
           - script: |
               terraform apply -auto-approve tfplan
             displayName: "Terraform Apply"
