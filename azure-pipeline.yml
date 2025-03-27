@@ -18,6 +18,12 @@ stages:
           vmImage: 'ubuntu-latest'  # Define agent inside the job
         steps:
 
+          # Step 0: Verify Terraform Files Exist
+          - script: |
+              echo "Checking directory structure..."
+              ls -R
+            displayName: "List all files in the repository"
+
           # Step 1: Verify Terraform Files Exist
           - script: |
               echo "Checking for Terraform files..."
